@@ -1,0 +1,6 @@
+{
+  "source_hazy": 45,
+  "source_gt": 45,
+  "max_side": 1600,
+  "resize": "bicubic, same factor for hazy and GT"
+}

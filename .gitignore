@@ -1,0 +1,20 @@
+# large / re-downloadable data (see README: "Data and weights")
+downloads/
+datasets/
+weights/
+predictions/
+*.pk
+*.pkl
+*.pth
+*.zip
+*.rar
+
+# python / jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# local logs
+results/run_log.txt

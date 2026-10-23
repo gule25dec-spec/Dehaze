@@ -1,0 +1,10 @@
+# PyTorch is installed separately by START_HERE.bat (GPU build if an NVIDIA card is found)
+numpy
+pandas
+pillow
+scikit-image
+matplotlib
+tqdm
+requests
+gdown>=5.1
+einops

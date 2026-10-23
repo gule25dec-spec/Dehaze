@@ -1,0 +1,6 @@
+{
+  "source_hazy": 500,
+  "source_gt": 50,
+  "max_side": null,
+  "resize": "none"
+}
