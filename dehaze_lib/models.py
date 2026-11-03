@@ -1,16 +1,13 @@
-"""Load the four official networks with their released weights and run inference.
+"""Load the official networks with their released weights and run inference.
 
 Pre/post-processing follows each repository's own test script:
-  FFA-Net   : ImageNet-style Normalize(mean=[0.64,0.6,0.58], std=[0.14,0.15,0.152]) input   (net/test.py)
-  MSBDN-DFF : [0,1] input, size padded to a multiple of 16                               (test.py)
-  AECR-Net  : [0,1] input, size padded to a multiple of 4                                (train_aecrnet.py)
   DEA-Net   : [0,1] input, reflect-padded to a multiple of 4                             (code/eval.py)
+  ConvIR    : [0,1] input, reflect-padded to a multiple of 32, full-scale output [2]    (Dehazing/ITS/eval.py)
+  CoA       : CLIP Normalize, bicubic resize to a multiple of 16 and back; output[0]      (Eval.py)
+  BiLaLoRA  : same as CoA (base network + LoRA layers)                                  (BiLaLoRA_Test.py)
 """
-import io
-import pickle
 import sys
 import time
-import types
 from pathlib import Path
 
 import numpy as np
@@ -41,63 +38,9 @@ def _torch_load(path, **kw):
 # ----------------------------------------------------------------------------------
 # builders: return an nn.Module with weights loaded
 # ----------------------------------------------------------------------------------
-def _build_ffa(path):
-    from third_party.ffa import FFA
-    net = FFA(gps=3, blocks=19)
-    ckp = _torch_load(path)
-    net.load_state_dict(_strip_module(ckp["model"] if "model" in ckp else ckp))
-    return net
-
-
-def _msbdn_pickle_module():
-    """MSBDN-DFF released its weights with torch.save(model): a pickled *module object*
-    whose classes live in 'networks.<file>'. Map those names onto the bundled code."""
-    from third_party.msbdn import MSBDN_DFF_v1_1 as v11, MSBDN_RDFF as rdff, base_networks as base
-    lookup = [v11, base, rdff]
-
-    class Unpickler(pickle.Unpickler):
-        def find_class(self, module, name):
-            if module.startswith("networks") or "MSBDN" in module or module.startswith("base_networks"):
-                for m in lookup:
-                    if hasattr(m, name):
-                        return getattr(m, name)
-            return super().find_class(module, name)
-
-    mod = types.ModuleType("msbdn_pickle")
-    mod.__dict__.update({k: getattr(pickle, k) for k in dir(pickle) if not k.startswith("__")})
-    mod.Unpickler = Unpickler
-    mod.load = lambda f, **kw: Unpickler(f, **kw).load()
-    mod.loads = lambda b, **kw: Unpickler(io.BytesIO(b), **kw).load()
-    return mod
-
-
-def _build_msbdn(path):
-    from third_party.msbdn.MSBDN_DFF_v1_1 import Net as NetDFF
-    from third_party.msbdn.MSBDN_RDFF import Net as NetRDFF
-    obj = _torch_load(path, pickle_module=_msbdn_pickle_module())
-    if isinstance(obj, dict):
-        sd = obj.get("model", obj.get("state_dict", obj))
-        if isinstance(sd, torch.nn.Module):
-            sd = sd.state_dict()
-    else:
-        sd = obj.state_dict()
-    sd = _strip_module(sd)
-    for cls in (NetDFF, NetRDFF):
-        net = cls()
-        try:
-            net.load_state_dict(sd, strict=True)
-            return net
-        except RuntimeError:
-            continue
-    if isinstance(obj, torch.nn.Module):   # architecture differs from both files: use the pickled model itself
-        print("  note: MSBDN checkpoint does not match the bundled Net exactly; using the pickled module")
-        return obj
-    raise RuntimeError("MSBDN-DFF checkpoint could not be loaded")
-
-
-def _build_aecr(path):
-    from third_party.aecr import Dehaze
-    net = Dehaze(3, 3)
+def _build_convir(path):
+    from third_party.convir import build_net
+    net = build_net("base", "ITS")
     ckp = _torch_load(path)
     net.load_state_dict(_strip_module(ckp["model"] if "model" in ckp else ckp))
     return net
@@ -110,8 +53,19 @@ def _build_dea(path):
     return net
 
 
-BUILDERS = {"FFA-Net": _build_ffa, "MSBDN-DFF": _build_msbdn, "AECR-Net": _build_aecr,
-            "DEA-Net": _build_dea}
+def _build_coa(path):
+    from third_party.coa import Student_x
+    net = Student_x()
+    net.load_state_dict(_strip_module(_torch_load(path)))
+    return net
+
+
+def _build_bilalora(path):
+    from third_party.bilalora import build_bilalora
+    return build_bilalora(Path(path).parent / "Base.pth", path)
+
+
+BUILDERS = {"DEA-Net": _build_dea, "ConvIR": _build_convir, "CoA": _build_coa, "BiLaLoRA": _build_bilalora}
 
 
 def load_model(model, tag):
@@ -135,26 +89,34 @@ def _pad_to(x, m, mode="reflect"):
     return x, h, w
 
 
-_FFA_MEAN = torch.tensor([0.64, 0.6, 0.58]).view(1, 3, 1, 1)
-_FFA_STD = torch.tensor([0.14, 0.15, 0.152]).view(1, 3, 1, 1)
+_CLIP_MEAN = torch.tensor([0.48145466, 0.4578275, 0.40821073]).view(1, 3, 1, 1)
+_CLIP_STD = torch.tensor([0.26862954, 0.26130258, 0.27577711]).view(1, 3, 1, 1)
 
 
-def _fwd_ffa(net, x):
-    xn = (x - _FFA_MEAN.to(x)) / _FFA_STD.to(x)
-    return net(xn)
-
-
-def _fwd_pad(m):
+def _fwd_pad(m, pick=0):
     def f(net, x):
         xp, h, w = _pad_to(x, m)
         y = net(xp)
-        y = y[0] if isinstance(y, (tuple, list)) else y
+        y = y[pick] if isinstance(y, (tuple, list)) else y
         return y[..., :h, :w]
     return f
 
 
-FORWARD = {"FFA-Net": _fwd_ffa, "MSBDN-DFF": _fwd_pad(16), "AECR-Net": _fwd_pad(4),
-           "DEA-Net": _fwd_pad(4)}
+def _fwd_clip_resize16(net, x):
+    """CoA / BiLaLoRA official test: CLIP normalisation, bicubic resize to a multiple of 16, take output[0],
+    resize back to the input size."""
+    from torchvision.transforms.functional import resize, InterpolationMode
+    h, w = x.shape[-2:]
+    xn = (x - _CLIP_MEAN.to(x)) / _CLIP_STD.to(x)
+    xr = resize(xn, [max(16, h // 16 * 16), max(16, w // 16 * 16)],
+                interpolation=InterpolationMode.BICUBIC, antialias=True)
+    y = net(xr)
+    y = y[0] if isinstance(y, (tuple, list)) else y
+    return resize(y, [h, w], interpolation=InterpolationMode.BICUBIC, antialias=True)
+
+
+FORWARD = {"DEA-Net": _fwd_pad(4), "ConvIR": _fwd_pad(32, pick=2),
+           "CoA": _fwd_clip_resize16, "BiLaLoRA": _fwd_clip_resize16}
 
 
 def _tiled(fn, net, x, tile=512, overlap=64):
@@ -271,7 +233,7 @@ def run_inference(models=None, datasets=None, limit=None, tile=None, overwrite=F
                     torch.cuda.synchronize()
                 times.append(time.perf_counter() - t0)
                 save_tensor(y, dst)
-            log.append({"Model": model, "Dataset": ds, "Checkpoint": C.WEIGHT_FILES[model][tag].get("inner", C.WEIGHT_FILES[model][tag]["file"]),
+            log.append({"Model": model, "Dataset": ds, "Checkpoint": C.checkpoint_name(model, tag),
                         "Images_run": len(times), "Sec_per_image": float(np.mean(times)) if times else np.nan,
                         "Params_M": round(count_params(net), 3), "Device": str(dev)})
     C.RESULTS.mkdir(parents=True, exist_ok=True)

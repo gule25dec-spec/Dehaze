@@ -1,0 +1,4 @@
+Source: https://github.com/YanZhang-zy/BiLaLoRA (DEAmodel/ copied unmodified; LoRALayer + inject_lora_to_layers copied from BiLaLoRA_Test.py).
+Change: DEAmodel/__init__.py imports only Backbonecs.
+Weights: weight.rar on the authors Google Drive -> Base.pth + LoRA.pth.
+Change 2: removed the unused "from IPython import embed" debug import in DEAmodel/LoRA/loralib/layers.py and utils.py.

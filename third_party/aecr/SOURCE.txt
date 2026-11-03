@@ -1,6 +1,0 @@
-Source: https://github.com/GlassyWu/AECR-Net (models/AECRNet.py, models/deconv.py).
-Changes:
- 1. DCNv2 CUDA extension replaced by torchvision.ops.deform_conv2d (dcn_torchvision.py) so it runs on Windows/CPU.
- 2. mix1/mix2 renamed mix4/mix5 to match the released checkpoints (same fix as gitee.com/damon_one/AECR-Net1).
- 3. Removed hard-coded .cuda() call.
-Weights: ITS_train.pk / NH_train.pk / DH_train.pk (official release, mirrored at gitee.com/damon_one/AECR-Net1).

@@ -4,8 +4,9 @@
   python run_all.py all --limit 5       # quick test with 5 images per dataset
   python run_all.py download            # datasets + official weights
   python run_all.py organize            # build datasets/<name>/{hazy,gt}
-  python run_all.py infer  [--models FFA-Net DEA-Net] [--datasets O_HAZE] [--limit N] [--tile 512]
+  python run_all.py infer  [--models ConvIR DEA-Net] [--datasets O_HAZE] [--limit N] [--tile 512]
   python run_all.py evaluate            # PSNR / SSIM / MAE tables + figures in results/
+  python run_all.py perceptual          # MUSIQ (no-reference) + LPIPS (perceptual) for every model
   python run_all.py summary             # rebuild tables/figures from results/per_image/*.csv
   python run_all.py status              # what is downloaded / predicted so far
 
@@ -53,7 +54,7 @@ class _Tee:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("step", choices=["all", "download", "organize", "infer", "evaluate", "summary", "status"])
+    ap.add_argument("step", choices=["all", "download", "organize", "infer", "evaluate", "perceptual", "summary", "status"])
     ap.add_argument("--models", nargs="*", default=None, choices=C.MODELS)
     ap.add_argument("--datasets", nargs="*", default=None, choices=C.DATASETS)
     ap.add_argument("--limit", type=int, default=None, help="only the first N hazy images per dataset")
@@ -77,7 +78,7 @@ def main():
         organize_all()
     if a.step in ("all", "infer"):
         from dehaze_lib.models import run_inference
-        print("\n=== 3/4 Running the four models ===")
+        print("\n=== 3/4 Running the models ===")
         run_inference(a.models, a.datasets, a.limit, a.tile, a.overwrite)
     if a.step in ("all", "evaluate"):
         from dehaze_lib.evaluate import evaluate_all, plot_results, plot_gain, show_examples
@@ -90,14 +91,29 @@ def main():
             print(s[cols].round(4).to_string(index=False))
             plot_results(s)
             plot_gain(s)
-            for ds in C.DATASETS:
-                show_examples(ds, 0)
+            from dehaze_lib.data import get_pairs
+            for ds in C.DATASETS:   # example figure from the first official TEST image when a split exists
+                ids = next((ids for b, ids in C.TEST_SUBSETS.values() if b == ds), None)
+                pairs, _ = get_pairs(ds)
+                idx = next((i for i, (sid, _, _) in enumerate(pairs) if ids and sid.split("_")[0] in ids), 0)
+                show_examples(ds, idx)
             print("\nSaved: results/summary_all.csv, results/summary.md, results/table_*.csv, results/figures/")
+    if a.step in ("all", "perceptual"):
+        from dehaze_lib.perceptual import evaluate_perceptual
+        print("\n=== Perceptual metrics: MUSIQ + LPIPS ===")
+        s = evaluate_perceptual(a.models, a.datasets, a.overwrite)
+        import matplotlib
+        matplotlib.use("Agg")
+        from dehaze_lib.evaluate import plot_perceptual
+        plot_perceptual(s)
+        cols = [c for c in ["Dataset", "Model", "PSNR", "SSIM", "MUSIQ", "LPIPS"] if c in s]
+        print(s[cols].round(4).to_string(index=False))
     if a.step == "summary":
-        from dehaze_lib.evaluate import build_summary, plot_results, plot_gain
+        from dehaze_lib.evaluate import build_summary, plot_results, plot_gain, plot_perceptual
         import matplotlib
         matplotlib.use("Agg")
         s = build_summary()
+        plot_perceptual(s)
         print(s[["Dataset", "Model", "N", "PSNR", "SSIM", "MAE"]].round(4).to_string(index=False))
         plot_results(s)
         plot_gain(s)

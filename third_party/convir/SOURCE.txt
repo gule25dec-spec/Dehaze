@@ -1,0 +1,3 @@
+Source: https://github.com/c-yn/ConvIR (Dehazing/ITS/models/ConvIR.py, layers.py), unmodified.
+Weights (official, Google Drive): its-base.pkl, ohaze-base.pkl, nhhaze-base.pkl (ConvIR-B).
+Note: the `data` argument does not change the network (the original `if data == ... or ...` test is always true).

@@ -8,3 +8,5 @@ tqdm
 requests
 gdown>=5.1
 einops
+pyiqa
+lpips

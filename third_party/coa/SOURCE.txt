@@ -1,0 +1,3 @@
+Source: https://github.com/YanZhang-zy/CoA (model/Student_x.py), unmodified.
+Only Student_x (the released EMA_r model) is used; the Teacher (needs ImageNet Res2Net + CLIP) is not needed for inference.
+Weights: model.rar on the authors Google Drive -> model/EMA_model/EMA_r.pth.

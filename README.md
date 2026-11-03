@@ -1,8 +1,17 @@
-# Single-Image Dehazing Benchmark: 4 Models × 3 Datasets
+# Single-Image Dehazing Benchmark: 4 Recent Models (2024–2026) × 3 Datasets
 
-Reproducible evaluation of four recent deep dehazing networks — **FFA-Net**, **MSBDN-DFF**, **AECR-Net** and **DEA-Net** — on **RESIDE-SOTS indoor**, **O-HAZE** and **NH-HAZE**, using the authors' official code and pretrained weights and one shared metric implementation.
+Reproducible evaluation of four recent deep dehazing networks on **RESIDE-SOTS indoor**, **O-HAZE** and **NH-HAZE**, using the authors' official code and pretrained weights and one shared metric implementation:
 
-One command downloads the data and weights, runs all four models, and produces every table and figure below:
+| Model | Venue | Type |
+|---|---|---|
+| **DEA-Net** | IEEE TIP 2024 | Paired-supervised (synthetic RESIDE) |
+| **ConvIR** | IEEE TPAMI 2024 | Paired-supervised (one checkpoint per benchmark) |
+| **CoA** | CVPR 2025 | Real-world: synthetic pre-training + unpaired real-photo adaptation |
+| **BiLaLoRA** | CVPR 2026 | Real-world: LoRA adaptation on unpaired real photos |
+
+Metrics: **PSNR, SSIM, MAE** (fidelity to ground truth), **LPIPS** (perceptual distance) and **MUSIQ** (no-reference quality, as used by the real-world papers), plus parameters and inference time.
+
+One command downloads the data and weights, runs all models and produces every table and figure below:
 
 ```bash
 python run_all.py all
@@ -10,102 +19,121 @@ python run_all.py all
 
 ![PSNR gain over the hazy input](results/figures/psnr_gain.png)
 
-**Key finding:** DEA-Net is best on synthetic haze (41.22 dB on SOTS), but AECR-Net — the only model with weights trained on real haze — is best on both real datasets. Models trained only on synthetic RESIDE data improve real hazy images by just 0.7–3.0 dB.
+**Key findings**
+
+- **ConvIR** is best on every fidelity metric (PSNR, SSIM, MAE, LPIPS) on all three test sets: 42.60 dB on SOTS, 24.64 dB on the O-HAZE test split, 20.66 dB on the NH-HAZE test split.
+- **BiLaLoRA** has the highest no-reference quality (MUSIQ) on every set, above even the ground-truth images on SOTS and NH-HAZE, and the best LPIPS on O-HAZE, but low PSNR: it produces sharp, high-contrast images that do not match the reference colours.
+- **CoA** is the smallest and fastest model (1.69 M parameters, 0.1 s per 1600 × 1200 image) but the weakest on real haze.
+- **DEA-Net** is strong on synthetic haze (41.22 dB) but, without real-haze weights, removes little real haze.
 
 ---
 
 ## Results
 
-Mean over all test images. PSNR in dB (↑), SSIM (↑), MAE (↓). Best per column in **bold**.
+Main results: SOTS-indoor (all 500 images), O-HAZE official test images 41–45, NH-HAZE official test images 51–55. ConvIR's O-HAZE and NH-HAZE checkpoints were trained on those datasets' training images, so only the test splits are a fair comparison.
 
-| Model | SOTS-indoor PSNR | SOTS-indoor SSIM | O-HAZE PSNR | O-HAZE SSIM | NH-HAZE test PSNR | NH-HAZE test SSIM |
-|---|---|---|---|---|---|---|
-| Hazy input (no dehazing) | 11.97 | 0.6947 | 13.74 | 0.6096 | 11.34 | 0.4182 |
-| FFA-Net | 36.36 | 0.9879 | 15.50 | 0.6499 | 12.00 | 0.4431 |
-| MSBDN-DFF | 32.91 | 0.9808 | 16.73 | 0.6733 | 12.83 | 0.4648 |
-| AECR-Net | 37.14 | 0.9893 | **19.78** | **0.7432** | **19.92** | **0.6717** |
-| DEA-Net | **41.22** | **0.9938** | 16.53 | 0.6843 | 12.55 | 0.4669 |
+| Model | SOTS PSNR ↑ | SOTS SSIM ↑ | SOTS LPIPS ↓ | SOTS MUSIQ ↑ | O-HAZE PSNR | O-HAZE SSIM | O-HAZE LPIPS | O-HAZE MUSIQ | NH-HAZE PSNR | NH-HAZE SSIM | NH-HAZE LPIPS | NH-HAZE MUSIQ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Hazy input | 11.97 | 0.695 | 0.200 | 46.3 | 14.97 | 0.638 | 0.365 | 51.8 | 11.34 | 0.418 | 0.583 | 55.0 |
+| DEA-Net (2024) | 41.22 | 0.994 | 0.003 | 50.1 | 18.77 | 0.728 | 0.305 | 51.3 | 12.55 | 0.467 | 0.538 | 55.7 |
+| ConvIR (2024) | **42.60** | **0.995** | **0.002** | 50.1 | **24.64** | **0.820** | 0.278 | 54.1 | **20.66** | **0.691** | **0.289** | 58.9 |
+| CoA (2025) | 18.55 | 0.830 | 0.177 | 50.5 | 15.83 | 0.745 | 0.339 | 50.2 | 10.32 | 0.510 | 0.516 | 57.8 |
+| BiLaLoRA (2026) | 19.61 | 0.806 | 0.181 | **60.7** | 18.30 | 0.745 | **0.254** | **58.9** | 11.87 | 0.553 | 0.473 | **63.5** |
+| *Ground-truth images* | – | – | – | *50.1* | – | – | – | *61.8* | – | – | – | *62.2* |
 
-N = 500 (SOTS indoor), 45 (O-HAZE), 5 (NH-HAZE official test images 51–55). Full tables including MAE and all 55 NH-HAZE images: [`results/summary.md`](results/summary.md), [`results/table_PSNR.csv`](results/table_PSNR.csv), [`results/table_SSIM.csv`](results/table_SSIM.csv), [`results/table_MAE.csv`](results/table_MAE.csv). Per-image scores: [`results/per_image/`](results/per_image).
+Full tables (incl. MAE and all 45 / 55 real images): [`results/summary.md`](results/summary.md), [`results/table_PSNR.csv`](results/table_PSNR.csv), `table_SSIM.csv`, `table_MAE.csv`, `table_LPIPS.csv`, `table_MUSIQ.csv`. Per-image scores: [`results/per_image/`](results/per_image), [`results/per_image_perceptual/`](results/per_image_perceptual).
 
-> **NH-HAZE split:** AECR-Net's NH-HAZE checkpoint was trained on images 01–45, so its score over all 55 images (21.88 dB) is inflated. The fair comparison uses the official test images 51–55 (column above). See [`results/NOTE_NH_HAZE_official_test_split.md`](results/NOTE_NH_HAZE_official_test_split.md).
+![MUSIQ and LPIPS](results/figures/musiq_lpips_bars.png)
 
-### Reproduction of published SOTS-indoor results
+### Reproduction of published results
 
-| Model | Paper PSNR / SSIM | This repo | Δ PSNR |
+| Model | Benchmark | Paper | This repo |
 |---|---|---|---|
-| FFA-Net | 36.39 / 0.9886 | 36.36 / 0.9879 | −0.03 |
-| MSBDN-DFF | 33.79 / 0.9840 | 32.91 / 0.9808 | −0.88 |
-| AECR-Net | 37.17 / 0.9901 | 37.14 / 0.9893 | −0.03 |
-| DEA-Net | 41.31 / 0.9945 | 41.22 / 0.9938 | −0.09 |
-| AECR-Net (NH-HAZE test) | 19.88 / 0.717 | 19.92 / 0.672 | +0.04 |
+| DEA-Net | SOTS-indoor | 41.31 dB / 0.9945 | 41.22 dB / 0.9938 |
+| ConvIR-B | SOTS-indoor | 42.72 dB / 0.997 | 42.60 dB / 0.9948 |
+| ConvIR-B | NH-HAZE test | 20.66 dB / 0.802 | 20.66 dB / 0.691 |
+| ConvIR-B | O-HAZE test | 25.36 dB / 0.780 | 24.64 dB / 0.820 (images downscaled to 1600 px) |
+
+CoA and BiLaLoRA report only no-reference metrics (FADE, BIQME, Entropy, MUSIQ) on RTTS / URHI / Fattal, so there is no published PSNR to compare. SSIM differences come from implementation details (ConvIR computes SSIM on downsampled images; we use full-resolution scikit-image SSIM for all models).
 
 ### Efficiency (RTX 2080 Ti, FP32, seconds per image)
 
 | Model | Params (M) | SOTS 620×460 | O-HAZE ≤1600 px | NH-HAZE 1600×1200 |
 |---|---|---|---|---|
-| FFA-Net | 4.46 | ≈0.52* | 3.29 | 2.98 |
-| MSBDN-DFF | 31.35 | 0.059 | 0.380 | 0.343 |
-| AECR-Net | 2.61 | 0.051 | 0.388 | 0.348 |
 | DEA-Net | 3.65 | 0.055 | 0.403 | 0.359 |
+| ConvIR-B | 8.63 | 0.114 | 0.833 | 0.763 |
+| CoA | 1.69 | **0.035** | **0.115** | **0.099** |
+| BiLaLoRA | 3.76 | 0.061 | 0.447 | 0.402 |
 
-\*From the progress rate (incl. file I/O); the timing log of that run was lost on a restart. Raw timings: [`results/inference_log.csv`](results/inference_log.csv).
+### Qualitative examples (official test images for O-HAZE and NH-HAZE)
 
-### Qualitative examples
-
-Hazy · FFA-Net · MSBDN-DFF · AECR-Net · DEA-Net · ground truth (PSNR / SSIM above each panel)
+Hazy · DEA-Net · ConvIR · CoA · BiLaLoRA · ground truth (PSNR / SSIM above each panel)
 
 ![SOTS indoor](results/figures/examples_RESIDE_SOTS_indoor_1400_1.png)
-![O-HAZE](results/figures/examples_O_HAZE_01_outdoor_hazy.png)
-![NH-HAZE](results/figures/examples_NH_HAZE_01_hazy.png)
+![O-HAZE](results/figures/examples_O_HAZE_41_outdoor_hazy.png)
+![NH-HAZE](results/figures/examples_NH_HAZE_51_hazy.png)
+
+---
+
+## Why these models: survey of 2025–2026 dehazing models
+
+We found 12 single-image dehazing models published in 2025–2026. Only three had both official code and downloadable pretrained weights; two of them could be run.
+
+| Model | Venue | Code | Weights | Used |
+|---|---|---|---|---|
+| CoA | CVPR 2025 | yes | Google Drive | **yes** |
+| BiLaLoRA | CVPR 2026 | yes | Google Drive | **yes** |
+| UDPNet | arXiv 2026 | yes | Baidu only (login needed) | shortlisted, not run |
+| IPC-Dehaze | CVPR 2025 | yes | partial | no |
+| Learning Hazing to Dehazing (DiffDehaze) | CVPR 2025 | yes | Baidu + Stable Diffusion | no |
+| DehazeXL | CVPR 2025 | yes | no link | no |
+| Dehaze-RetinexGAN | AAAI 2025 | no | – | no |
+| Equivariant Learning (unsupervised) | arXiv 2026 | no | – | no |
+| API | arXiv 2026 | no | – | no |
+| DDR-Net | arXiv 2026 | no | – | no |
+| In-Context Tabular Inference | arXiv 2026 | no | – | no |
+| Hihaze | arXiv 2026 | no | – | no |
+
+DEA-Net and ConvIR (2024) are the strongest paired-supervised models with released weights and serve as the supervised reference.
 
 ---
 
 ## Quick start
 
-**Requirements:** Python 3.10+ (tested on 3.13), an NVIDIA GPU recommended (tested on RTX 2080 Ti, 11 GB). About 2 GB of disk for data and weights.
+**Requirements:** Python 3.10+ (tested on 3.13), NVIDIA GPU recommended (tested on RTX 2080 Ti, 11 GB), about 3 GB of disk for data, weights and metric models.
 
 ### Windows (one click)
 
-Double-click **`START_HERE.bat`**. It installs PyTorch (CUDA build if an NVIDIA GPU is found), installs the requirements, and runs the whole pipeline.
+Double-click **`START_HERE.bat`**: it installs PyTorch (CUDA build if an NVIDIA GPU is found) and the requirements, then runs the whole pipeline.
 
-### Any OS (command line)
+### Any OS
 
 ```bash
 git clone <this-repo-url>
 cd dehazing-benchmark
-
-# 1. PyTorch: pick the build for your machine (https://pytorch.org/get-started/locally/)
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126   # NVIDIA GPU
-# pip install torch torchvision                                                    # CPU only
-
-# 2. Other dependencies
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126   # or: pip install torch torchvision (CPU)
 pip install -r requirements.txt
-
-# 3. Run everything (download → organize → inference → evaluation)
 python run_all.py all
 ```
 
 ### Step by step
 
 ```bash
-python run_all.py download            # datasets + official pretrained weights (resumable)
-python run_all.py organize            # pair images into datasets/<name>/{hazy,gt}
-python run_all.py infer               # run all 4 models → predictions/<dataset>/<model>/
-python run_all.py evaluate            # PSNR/SSIM/MAE tables + figures → results/
-python run_all.py summary             # rebuild tables/figures from results/per_image/*.csv
-python run_all.py status              # what is downloaded / predicted so far
+python run_all.py download     # datasets + official pretrained weights (resumable)
+python run_all.py organize     # pair images into datasets/<name>/{hazy,gt}
+python run_all.py infer        # run all models -> predictions/<dataset>/<model>/
+python run_all.py evaluate     # PSNR / SSIM / MAE + figures
+python run_all.py perceptual   # MUSIQ + LPIPS (downloads the metric models once)
+python run_all.py summary      # rebuild tables/figures from results/per_image*/
+python run_all.py status       # what is downloaded / predicted
 
 # options
-python run_all.py all --limit 5                       # quick test: 5 images per dataset
-python run_all.py infer --models DEA-Net --datasets O_HAZE
-python run_all.py infer --tile 512                    # low-memory tiled inference
-python run_all.py evaluate --lpips                    # also LPIPS (pip install lpips)
+python run_all.py all --limit 5                  # quick test, 5 images per dataset
+python run_all.py infer --models ConvIR --datasets O_HAZE
+python run_all.py infer --tile 512               # low-memory tiled inference
 ```
 
-Or open **`Assignment2_Dehazing_4models.ipynb`** and run the cells top to bottom.
-
-Every run's console output is appended to `results/run_log.txt`. Re-running is safe: finished downloads and predictions are skipped (`--overwrite` to recompute).
+Or open **`Assignment2_Dehazing.ipynb`** and run the cells top to bottom. Every run's console output is appended to `results/run_log.txt`; finished downloads and predictions are skipped on re-runs (`--overwrite` to recompute).
 
 ---
 
@@ -113,111 +141,63 @@ Every run's console output is appended to `results/run_log.txt`. Re-running is s
 
 ```
 dehazing-benchmark/
-├── run_all.py                         # CLI: download / organize / infer / evaluate / summary / status
-├── START_HERE.bat                     # Windows one-click setup + full run
-├── Assignment2_Dehazing_4models.ipynb # same pipeline as a notebook
+├── run_all.py                      # CLI: download / organize / infer / evaluate / perceptual / summary / status
+├── START_HERE.bat                  # Windows one-click setup + full run
+├── Assignment2_Dehazing.ipynb      # same pipeline as a notebook
 ├── requirements.txt
 ├── configs/
-│   ├── experiment.json                # full experimental configuration (exported from dehaze_lib/config.py)
-│   └── preprocessing/*.json           # per-dataset preprocessing record from our run
+│   ├── experiment.json             # full experimental configuration
+│   └── preprocessing/*.json        # per-dataset preprocessing record
 ├── dehaze_lib/
-│   ├── config.py                      # paths, dataset/weight sources, checkpoint per dataset, splits
-│   ├── download.py                    # dataset + weight download (resume, checksum, rar extraction)
-│   ├── data.py                        # dataset organisation and hazy↔GT pairing
-│   ├── models.py                      # model loading, official pre/post-processing, inference
-│   └── evaluate.py                    # PSNR/SSIM/MAE, tables, figures
-├── third_party/                       # authors' model code (see SOURCE.txt in each folder)
-│   ├── ffa/  msbdn/  aecr/  dea/
-└── results/                           # results of our run (tables, per-image CSVs, figures, timing log)
-
-# created when you run it (git-ignored):
-downloads/  datasets/  weights/  predictions/
+│   ├── config.py                   # models, dataset/weight sources, checkpoint per dataset, test splits
+│   ├── download.py                 # dataset + weight download (resume, rar extraction)
+│   ├── data.py                     # dataset organisation and hazy↔GT pairing
+│   ├── models.py                   # model loading, official pre/post-processing, inference
+│   ├── evaluate.py                 # PSNR / SSIM / MAE, tables, figures
+│   └── perceptual.py               # MUSIQ + LPIPS
+├── third_party/                    # authors' model code (SOURCE.txt in each folder)
+│   ├── dea/  convir/  coa/  bilalora/
+└── results/                        # results of our run
+# created when you run it (git-ignored): downloads/  datasets/  weights/  predictions/
 ```
 
----
+## Models, weights and processing
 
-## Models
-
-| Model | Paper | Official code | Weights used |
+| Model | Code | Checkpoint (SOTS / O-HAZE / NH-HAZE) | Pre/post-processing (from the authors' test scripts) |
 |---|---|---|---|
-| FFA-Net | [Qin et al., AAAI 2020](https://arxiv.org/abs/1911.07559) | [zhilin007/FFA-Net](https://github.com/zhilin007/FFA-Net) | ITS (SOTS), OTS (O-HAZE, NH-HAZE) |
-| MSBDN-DFF | [Dong et al., CVPR 2020](https://arxiv.org/abs/2004.13388) | [BookerDeWitt/MSBDN-DFF](https://github.com/BookerDeWitt/MSBDN-DFF) | RESIDE (all) |
-| AECR-Net | [Wu et al., CVPR 2021](https://arxiv.org/abs/2104.09367) | [GlassyWu/AECR-Net](https://github.com/GlassyWu/AECR-Net) | ITS (SOTS), NH-HAZE (O-HAZE, NH-HAZE) |
-| DEA-Net | [Chen et al., IEEE TIP 2024](https://arxiv.org/abs/2301.04805) | [cecret3350/DEA-Net](https://github.com/cecret3350/DEA-Net) | ITS (SOTS), OTS (O-HAZE, NH-HAZE) |
+| DEA-Net | [cecret3350/DEA-Net](https://github.com/cecret3350/DEA-Net) | ITS / OTS / OTS | [0,1], reflect-pad to ×4 |
+| ConvIR-B | [c-yn/ConvIR](https://github.com/c-yn/ConvIR) | its-base / ohaze-base / nhhaze-base | [0,1], reflect-pad to ×32, full-scale output |
+| CoA | [YanZhang-zy/CoA](https://github.com/YanZhang-zy/CoA) | EMA_r (all sets) | CLIP normalisation, bicubic resize to ×16 and back |
+| BiLaLoRA | [YanZhang-zy/BiLaLoRA](https://github.com/YanZhang-zy/BiLaLoRA) | Base + LoRA (all sets) | same as CoA; LoRA r = 8, α = 16 on 3 layers |
 
-No author released O-HAZE weights and only AECR-Net released NH-HAZE weights, so results on the real-haze sets are mostly **cross-dataset generalisation**.
+Changes to the authors' code are listed in `third_party/*/SOURCE.txt` (import paths only; BiLaLoRA: an unused IPython debug import removed).
 
-**Changes to the authors' code** (details in `third_party/*/SOURCE.txt`):
+## Data
 
-- **AECR-Net:** the CUDA-only DCNv2 extension is replaced by `torchvision.ops.deform_conv2d` (the same modulated deformable convolution, identical parameter names), so it runs on Windows and CPU; `mix1/mix2` renamed `mix4/mix5` to match the released checkpoints; hard-coded `.cuda()` removed.
-- **MSBDN-DFF:** relative imports. Its released `model.pkl` is a pickled module; `dehaze_lib/models.py` maps the pickled class names onto the bundled code and loads the weights strictly.
-- **FFA-Net, DEA-Net:** unchanged.
-
-Pre/post-processing follows each repository's own test script (FFA-Net input normalisation; padding to multiples of 16 / 4 / 4 for MSBDN-DFF / AECR-Net / DEA-Net); outputs are clamped to [0, 1] and saved as 8-bit PNG.
-
-## Data and weights
-
-Nothing large is stored in this repository; `python run_all.py download` fetches it.
-
-| Item | Source |
-|---|---|
-| RESIDE-SOTS (indoor used) | [Hugging Face mirror](https://huggingface.co/datasets/desonglll/reside-SOTS) of the official [RESIDE](https://sites.google.com/view/reside-dehaze-datasets/reside-standard) test set |
-| O-HAZE | [Hugging Face mirror](https://huggingface.co/datasets/dronefreak/NTIRE-Haze) of the official [O-HAZE](https://data.vision.ee.ethz.ch/cvl/ntire18/o-haze/) |
-| NH-HAZE | [Official ZIP](https://data.vision.ee.ethz.ch/cvl/ntire20/nh-haze/) (falls back to the Hugging Face mirror) |
-| FFA-Net, MSBDN-DFF, DEA-Net weights | Authors' Google Drive links (via `gdown`) |
-| AECR-Net weights | Official release (Baidu) mirrored at [gitee.com/damon_one/AECR-Net1](https://gitee.com/damon_one/AECR-Net1); git SHA-1 verified after download |
-
-**Preprocessing:** each hazy image is paired with its ground truth by scene id; SOTS indoor has 50 clear scenes × 10 haze levels = 500 pairs. O-HAZE is downscaled so its longest side is 1600 px (same bicubic factor for hazy and ground truth); set `MAX_SIDE` in `dehaze_lib/config.py` to `None` for full resolution.
-
-If Google Drive refuses a download ("too many users"), run the download step again later, or download the file manually from the link printed and place it in `weights/<model>/`.
+| Dataset | Source | Notes |
+|---|---|---|
+| RESIDE-SOTS indoor | [HF mirror](https://huggingface.co/datasets/desonglll/reside-SOTS) of [RESIDE](https://sites.google.com/view/reside-dehaze-datasets/reside-standard) | 500 hazy images of 50 scenes |
+| O-HAZE | [HF mirror](https://huggingface.co/datasets/dronefreak/NTIRE-Haze) of [O-HAZE](https://data.vision.ee.ethz.ch/cvl/ntire18/o-haze/) | 45 pairs, downscaled to 1600 px long side; test = 41–45 |
+| NH-HAZE | [Official](https://data.vision.ee.ethz.ch/cvl/ntire20/nh-haze/) | 55 pairs; test = 51–55 |
 
 ## Evaluation protocol
 
-- Same test images, same pre-processing and the same metric code for every model.
-- **PSNR**: `skimage.metrics.peak_signal_noise_ratio`, RGB in [0, 1].
-- **SSIM**: `skimage.metrics.structural_similarity`, Gaussian window σ = 1.5, RGB averaged.
-- **MAE**: mean absolute error in [0, 1].
-- **Efficiency**: parameter count and CUDA-synchronised inference time per image (excluding file I/O).
-- The unprocessed hazy input is scored as a baseline.
-
-Small SSIM differences from the papers are expected because papers mix MATLAB and Python SSIM implementations.
-
-## Original training configurations (for reference)
-
-All results use the released checkpoints; no model was retrained.
-
-| | FFA-Net | MSBDN-DFF | AECR-Net | DEA-Net |
-|---|---|---|---|---|
-| Training data | RESIDE ITS / OTS | RESIDE (HDF5 patches) | RESIDE ITS; NH-HAZE 01–45 | RESIDE ITS / OTS |
-| Crop / batch | 240 / 2 | 256 / 16 | 240 / 16 | 256 / 16 |
-| Iterations | 5×10⁵ (ITS), 10⁶ (OTS) | 100 epochs | 100 × 5000 | 300 × 5000 |
-| Optimizer, LR | Adam, 1e-4 cosine | Adam, 1e-4 (×0.1 at epoch 50) | Adam, 1e-4 cosine | Adam, 1e-4→1e-6 cosine |
-| Loss | L1 | MSE | L1 + contrastive | L1 + 0.1·contrastive |
-
-## Troubleshooting
-
-- **Slow inference on large images (Windows):** GPU memory can spill into shared system memory; the pipeline frees the CUDA cache when the image size changes. If it is still slow, use `--tile 512`.
-- **Out of memory:** `--tile 512`, or lower `MAX_SIDE` for O-HAZE.
-- **Python not found by `START_HERE.bat`:** it also tries `%USERPROFILE%\anaconda3\python.exe`; otherwise install Python 3.10+ and tick "Add to PATH".
+Same test images, same pre-processing and the same metric code for every model. PSNR and SSIM from scikit-image (RGB, data range 1, Gaussian SSIM σ = 1.5); MAE in [0, 1]; LPIPS with AlexNet features (`lpips` package); MUSIQ with the KonIQ-10k checkpoint (`pyiqa`). The unprocessed hazy input and the ground-truth images (MUSIQ) are scored as references.
 
 ## Citation
 
-If you use this benchmark, please cite the original papers:
-
 ```bibtex
-@inproceedings{qin2020ffa,   title={FFA-Net: Feature Fusion Attention Network for Single Image Dehazing}, author={Qin, Xu and Wang, Zhilin and Bai, Yuanchao and Xie, Xiaodong and Jia, Huizhu}, booktitle={AAAI}, year={2020}}
-@inproceedings{dong2020msbdn,title={Multi-Scale Boosted Dehazing Network with Dense Feature Fusion}, author={Dong, Hang and Pan, Jinshan and Xiang, Lei and Hu, Zhe and Zhang, Xinyi and Wang, Fei and Yang, Ming-Hsuan}, booktitle={CVPR}, year={2020}}
-@inproceedings{wu2021aecr,   title={Contrastive Learning for Compact Single Image Dehazing}, author={Wu, Haiyan and Qu, Yanyun and Lin, Shaohui and Zhou, Jian and Qiao, Ruizhi and Zhang, Zhizhong and Xie, Yuan and Ma, Lizhuang}, booktitle={CVPR}, year={2021}}
-@article{chen2024dea,        title={DEA-Net: Single Image Dehazing Based on Detail-Enhanced Convolution and Content-Guided Attention}, author={Chen, Zixuan and He, Zewei and Lu, Zhe-Ming}, journal={IEEE Transactions on Image Processing}, volume={33}, pages={1002--1015}, year={2024}}
-@article{li2019reside,       title={Benchmarking Single-Image Dehazing and Beyond}, author={Li, Boyi and Ren, Wenqi and Fu, Dengpan and Tao, Dacheng and Feng, Dan and Zeng, Wenjun and Wang, Zhangyang}, journal={IEEE Transactions on Image Processing}, volume={28}, number={1}, pages={492--505}, year={2019}}
+@article{chen2024dea,  title={DEA-Net: Single Image Dehazing Based on Detail-Enhanced Convolution and Content-Guided Attention}, author={Chen, Zixuan and He, Zewei and Lu, Zhe-Ming}, journal={IEEE TIP}, volume={33}, pages={1002--1015}, year={2024}}
+@article{cui2024convir, title={Revitalizing Convolutional Network for Image Restoration}, author={Cui, Yuning and Ren, Wenqi and Cao, Xiaochun and Knoll, Alois}, journal={IEEE TPAMI}, year={2024}}
+@inproceedings{ma2025coa, title={CoA: Towards Real Image Dehazing via Compression-and-Adaptation}, author={Ma, Long and Feng, Yuxin and Zhang, Yan and Liu, Jinyuan and Wang, Weimin and Chen, Guangyong and Xu, Chengpei and Su, Zhuo}, booktitle={CVPR}, year={2025}}
+@inproceedings{zhang2026bilalora, title={Bilevel Layer-Positioning LoRA for Real Image Dehazing}, author={Zhang, Yan and Ma, Long and Feng, Yuxin and Huang, Zhe and Zhou, Fan and Su, Zhuo}, booktitle={CVPR}, year={2026}}
+@article{li2019reside, title={Benchmarking Single-Image Dehazing and Beyond}, author={Li, Boyi and Ren, Wenqi and Fu, Dengpan and Tao, Dacheng and Feng, Dan and Zeng, Wenjun and Wang, Zhangyang}, journal={IEEE TIP}, volume={28}, number={1}, pages={492--505}, year={2019}}
 @inproceedings{ancuti2018ohaze, title={O-HAZE: A Dehazing Benchmark with Real Hazy and Haze-Free Outdoor Images}, author={Ancuti, Codruta O. and Ancuti, Cosmin and Timofte, Radu and De Vleeschouwer, Christophe}, booktitle={CVPR Workshops}, year={2018}}
 @inproceedings{ancuti2020nhhaze, title={NH-HAZE: An Image Dehazing Benchmark with Non-Homogeneous Hazy and Haze-Free Images}, author={Ancuti, Codruta O. and Ancuti, Cosmin and Timofte, Radu}, booktitle={CVPR Workshops}, year={2020}}
+@inproceedings{ke2021musiq, title={MUSIQ: Multi-scale Image Quality Transformer}, author={Ke, Junjie and Wang, Qifei and Wang, Yilin and Milanfar, Peyman and Yang, Feng}, booktitle={ICCV}, year={2021}}
+@inproceedings{zhang2018lpips, title={The Unreasonable Effectiveness of Deep Features as a Perceptual Metric}, author={Zhang, Richard and Isola, Phillip and Efros, Alexei A. and Shechtman, Eli and Wang, Oliver}, booktitle={CVPR}, year={2018}}
 ```
 
-## Acknowledgements
+## Acknowledgements and license
 
-Model code and pretrained weights belong to the authors of FFA-Net, MSBDN-DFF, AECR-Net and DEA-Net (links above). Datasets are from the RESIDE, O-HAZE and NH-HAZE authors. The AECR-Net weight mirror and the `mix4/mix5` fix come from [gitee.com/damon_one/AECR-Net1](https://gitee.com/damon_one/AECR-Net1). AI assistance (Claude, Anthropic) was used to write the evaluation pipeline, adapt the code to Windows, and draft documentation; all code was run and verified against the published results.
-
-## License
-
-Code in `dehaze_lib/`, `run_all.py` and the notebook: MIT (see [LICENSE](LICENSE)). `third_party/` remains under its original authors' terms. Datasets and weights are not redistributed.
+Model code and weights belong to the authors of DEA-Net, ConvIR, CoA and BiLaLoRA; datasets to the RESIDE, O-HAZE and NH-HAZE authors; MUSIQ via [pyiqa](https://github.com/chaofengc/IQA-PyTorch) and LPIPS via [lpips](https://github.com/richzhang/PerceptualSimilarity). AI assistance (Claude, Anthropic) was used to write the pipeline, adapt the code and draft documentation; all code was run and verified. Code in `dehaze_lib/`, `run_all.py` and the notebook: MIT (see [LICENSE](LICENSE)); `third_party/` keeps its authors' terms.

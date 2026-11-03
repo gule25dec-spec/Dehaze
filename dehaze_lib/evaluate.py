@@ -106,26 +106,60 @@ def build_summary():
         lg = pd.read_csv(log)[["Model", "Dataset", "Checkpoint", "Sec_per_image", "Params_M", "Device"]]
         summary["_base"] = summary.Dataset.map(lambda d: C.TEST_SUBSETS.get(d, (d,))[0])
         summary = summary.merge(lg.rename(columns={"Dataset": "_base"}), on=["Model", "_base"], how="left").drop(columns="_base")
+    summary = _merge_perceptual(summary)
     summary.to_csv(C.RESULTS / "summary_all.csv", index=False)
     cols = [d for d in C.DATASETS + list(C.TEST_SUBSETS) if d in set(summary.Dataset)]
-    for metric in ("PSNR", "SSIM", "MAE"):
+    order_gt = order + ["Ground truth"]
+    for metric in ("PSNR", "SSIM", "MAE", "MUSIQ", "LPIPS"):
+        if metric not in summary or summary[metric].isna().all():
+            continue
         summary.pivot(index="Model", columns="Dataset", values=metric).reindex(
-            index=[m for m in order if m in set(summary.Model)], columns=cols
+            index=[m for m in order_gt if m in set(summary.Model)], columns=cols
         ).round(4).to_csv(C.RESULTS / f"table_{metric}.csv")
     _write_markdown(summary)
     return summary
 
 
+def _merge_perceptual(summary):
+    """Add mean MUSIQ / LPIPS from results/per_image_perceptual/ (see perceptual.py), incl. test subsets.
+    A 'Ground truth' row carries the MUSIQ of the clear images as an upper reference."""
+    pdir = C.RESULTS / "per_image_perceptual"
+    files = sorted(pdir.glob("*.csv")) if pdir.exists() else []
+    if not files:
+        return summary
+    recs = []
+    for f in files:
+        df = pd.read_csv(f, dtype={"Image": str})
+        ds, model = df.Dataset.iloc[0], df.Model.iloc[0]
+        if model not in C.MODELS and model not in ("Hazy input (no dehazing)", "Ground truth"):
+            continue
+        groups = [(ds, df)]
+        for sub_name, (base, ids) in C.TEST_SUBSETS.items():
+            if base == ds:
+                groups.append((sub_name, df[df.Image.str.split("_").str[0].isin(ids)]))
+        for name, g in groups:
+            if len(g):
+                recs.append({"Dataset": name, "Model": model, "MUSIQ": g.MUSIQ.mean(),
+                             "LPIPS": g.LPIPS.mean() if "LPIPS" in g else np.nan,
+                             **({"N": len(g), "N_total": len(g)} if model == "Ground truth" else {})})
+    perc = pd.DataFrame(recs)
+    gt = perc[perc.Model == "Ground truth"]
+    out = summary.merge(perc[perc.Model != "Ground truth"].drop(columns=[c for c in ("N", "N_total") if c in perc]),
+                        on=["Dataset", "Model"], how="left")
+    return pd.concat([out, gt], ignore_index=True)
+
+
 def _write_markdown(summary):
     lines = ["# Dehazing results (same images, same metric code for every model)", ""]
     for ds, g in summary.groupby("Dataset", sort=False):
-        lines += [f"## {ds}", "", "| Model | Checkpoint | N | PSNR (dB) | SSIM | MAE | s/img |",
-                  "|---|---|---|---|---|---|---|"]
+        lines += [f"## {ds}", "", "| Model | Checkpoint | N | PSNR (dB) | SSIM | MAE | MUSIQ | LPIPS | s/img |",
+                  "|---|---|---|---|---|---|---|---|---|"]
+        f = lambda v, d: "" if pd.isna(v) else f"{v:.{d}f}"
         for _, r in g.iterrows():
-            partial = "" if r.N == r.N_total else f" (of {r.N_total})"
+            partial = "" if r.N == r.N_total else f" (of {int(r.N_total)})"
             lines.append(f"| {r.Model} | {r.get('Checkpoint', '') if isinstance(r.get('Checkpoint', ''), str) else ''} | "
-                         f"{r.N}{partial} | {r.PSNR:.2f} | {r.SSIM:.4f} | {r.MAE:.4f} | "
-                         f"{'' if pd.isna(r.get('Sec_per_image', np.nan)) else f'{r.Sec_per_image:.3f}'} |")
+                         f"{int(r.N)}{partial} | {f(r.get('PSNR'), 2)} | {f(r.get('SSIM'), 4)} | {f(r.get('MAE'), 4)} | "
+                         f"{f(r.get('MUSIQ', np.nan), 2)} | {f(r.get('LPIPS', np.nan), 4)} | {f(r.get('Sec_per_image', np.nan), 3)} |")
         lines.append("")
     (C.RESULTS / "summary.md").write_text("\n".join(lines), encoding="utf-8")
 
@@ -168,12 +202,13 @@ def plot_gain(summary=None, save=True):
         s = summary[summary.Model == m].set_index("Dataset").PSNR
         vals = [s.get(d, np.nan) - base[d] for d in dsets]
         bars = ax.bar(np.arange(len(dsets)) + i * w, vals, w, label=m,
-                      color="#2f6fd6" if m == "AECR-Net" else ["#9a9a9a", "#b8b8b8", "#d0d0d0", "#7f7f7f"][i % 4])
-        ax.bar_label(bars, fmt="+%.1f", fontsize=8)
+                      color=["#6f6f6f", "#2f6fd6", "#e0a458", "#c97b2a"][i % 4],
+                      hatch="//" if m in ("CoA", "BiLaLoRA") else None, edgecolor="white")
+        ax.bar_label(bars, fmt="%+.1f", fontsize=8)
     ax.set_xticks(np.arange(len(dsets)) + w * (len(C.MODELS) - 1) / 2)
     ax.set_xticklabels([d.replace("RESIDE_", "").replace("_", " ") for d in dsets])
     ax.set_ylabel("PSNR gain over hazy input (dB)")
-    ax.set_title("Synthetic vs real haze: PSNR gain of each model over the hazy input")
+    ax.set_title("PSNR gain of each model over the hazy input (hatched = real-world models, 2025-26)")
     ax.spines[["top", "right"]].set_visible(False)
     ax.legend(fontsize=8, frameon=False)
     plt.tight_layout()
@@ -208,4 +243,45 @@ def show_examples(dataset, idx=0, save=True):
     if save:
         (C.RESULTS / "figures").mkdir(parents=True, exist_ok=True)
         fig.savefig(C.RESULTS / "figures" / f"examples_{dataset}_{sid}.png", dpi=150)
+    return fig
+
+
+def plot_perceptual(summary=None, save=True):
+    """MUSIQ (no-reference, higher better; dashed line = ground-truth images) and LPIPS (lower better)."""
+    import matplotlib.pyplot as plt
+    if summary is None:
+        summary = pd.read_csv(C.RESULTS / "summary_all.csv")
+    if "MUSIQ" not in summary or summary.MUSIQ.isna().all():
+        return None
+    bases = {b for b, _ in C.TEST_SUBSETS.values()}
+    dsets = [d for d in C.DATASETS if d not in bases] + list(C.TEST_SUBSETS)
+    dsets = [d for d in dsets if d in set(summary.Dataset)]
+    order = ["Hazy input (no dehazing)"] + C.MODELS
+    cols = ["#bdbdbd", "#6f6f6f", "#2f6fd6", "#e0a458", "#c97b2a"]
+    fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
+    w = 0.8 / len(order)
+    for ax, metric in zip(axes, ("MUSIQ", "LPIPS")):
+        for i, m in enumerate(order):
+            s = summary[summary.Model == m].set_index("Dataset")[metric]
+            vals = [s.get(d, np.nan) for d in dsets]
+            bars = ax.bar(np.arange(len(dsets)) + i * w, vals, w, label=m.replace(" (no dehazing)", ""),
+                          color=cols[i % len(cols)], hatch="//" if m in ("CoA", "BiLaLoRA") else None, edgecolor="white")
+            ax.bar_label(bars, fmt="%.1f" if metric == "MUSIQ" else "%.3f", fontsize=7)
+        if metric == "MUSIQ":
+            gt = summary[summary.Model == "Ground truth"].set_index("Dataset").MUSIQ
+            for j, d in enumerate(dsets):
+                if d in gt.index:
+                    ax.hlines(gt[d], j - 0.05, j + w * len(order) - 0.05, colors="black", linestyles="--", linewidth=1)
+            ax.set_title("MUSIQ, no-reference quality (higher is better; dashed = ground-truth images)")
+            ax.set_ylim(40, 70)
+        else:
+            ax.set_title("LPIPS distance to ground truth (lower is better)")
+        ax.set_xticks(np.arange(len(dsets)) + w * (len(order) - 1) / 2)
+        ax.set_xticklabels([d.replace("RESIDE_", "").replace("_", " ") for d in dsets])
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[1].legend(fontsize=8, frameon=False)
+    plt.tight_layout()
+    if save:
+        (C.RESULTS / "figures").mkdir(parents=True, exist_ok=True)
+        fig.savefig(C.RESULTS / "figures" / "musiq_lpips_bars.png", dpi=150)
     return fig

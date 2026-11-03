@@ -1,11 +1,11 @@
 {
-  "experiment": "Single-image dehazing: 4 pretrained models x 3 test sets (inference + common evaluation)",
+  "experiment": "Single-image dehazing: 4 pretrained models (2024-2026) x 3 test sets (inference + common evaluation)",
   "setting": "Assignment 2, Setting 1 - dataset-based evaluation",
   "models": [
-    "FFA-Net",
-    "MSBDN-DFF",
-    "AECR-Net",
-    "DEA-Net"
+    "DEA-Net",
+    "ConvIR",
+    "CoA",
+    "BiLaLoRA"
   ],
   "datasets": [
     "RESIDE_SOTS_indoor",
@@ -13,6 +13,16 @@
     "NH_HAZE"
   ],
   "test_subsets": {
+    "O_HAZE_test41-45": {
+      "base": "O_HAZE",
+      "scene_ids": [
+        "41",
+        "42",
+        "43",
+        "44",
+        "45"
+      ]
+    },
     "NH_HAZE_test51-55": {
       "base": "NH_HAZE",
       "scene_ids": [
@@ -25,59 +35,28 @@
     }
   },
   "checkpoint_per_dataset": {
-    "FFA-Net": {
-      "RESIDE_SOTS_indoor": "its",
-      "O_HAZE": "ots",
-      "NH_HAZE": "ots"
-    },
-    "MSBDN-DFF": {
-      "RESIDE_SOTS_indoor": "reside",
-      "O_HAZE": "reside",
-      "NH_HAZE": "reside"
-    },
-    "AECR-Net": {
-      "RESIDE_SOTS_indoor": "its",
-      "O_HAZE": "nh",
-      "NH_HAZE": "nh"
-    },
     "DEA-Net": {
       "RESIDE_SOTS_indoor": "its",
       "O_HAZE": "ots",
       "NH_HAZE": "ots"
+    },
+    "ConvIR": {
+      "RESIDE_SOTS_indoor": "its",
+      "O_HAZE": "ohaze",
+      "NH_HAZE": "nhhaze"
+    },
+    "CoA": {
+      "RESIDE_SOTS_indoor": "ema_r",
+      "O_HAZE": "ema_r",
+      "NH_HAZE": "ema_r"
+    },
+    "BiLaLoRA": {
+      "RESIDE_SOTS_indoor": "lora",
+      "O_HAZE": "lora",
+      "NH_HAZE": "lora"
     }
   },
   "weights": {
-    "FFA-Net": {
-      "its": {
-        "kind": "gdrive",
-        "id": "1xVbgsabnI2-fVw3vmsra690YmBwiK_su",
-        "file": "its_train_ffa_3_19.pk"
-      },
-      "ots": {
-        "kind": "gdrive",
-        "id": "1EGIJADl24Om3Hv7_bJVMPiqU1Dd0kg3b",
-        "file": "ots_train_ffa_3_19.pk"
-      }
-    },
-    "MSBDN-DFF": {
-      "reside": {
-        "kind": "gdrive",
-        "id": "1da13IOlJ3FQfH6Duj_u1exmZzgXPaYXe",
-        "file": "model.pkl"
-      }
-    },
-    "AECR-Net": {
-      "its": {
-        "kind": "gitee",
-        "sha": "793e6e0d523d31390fc636dd3b5b506bab0100c6",
-        "file": "ITS_train.pk"
-      },
-      "nh": {
-        "kind": "gitee",
-        "sha": "ac9c0a3f7dbe045d658e87c2c9d8eef840e6d72a",
-        "file": "NH_train.pk"
-      }
-    },
     "DEA-Net": {
       "its": {
         "kind": "gdrive",
@@ -89,13 +68,51 @@
         "id": "15MLmKtBEsULClWorzU2iz0JFjF3xQ42J",
         "file": "PSNR3659_SSIM9897.pth"
       }
+    },
+    "ConvIR": {
+      "its": {
+        "kind": "gdrive",
+        "id": "1tyBKoX0yj5ohx1io2CroEU0NKNmIRs9p",
+        "file": "its-base.pkl"
+      },
+      "ohaze": {
+        "kind": "gdrive",
+        "id": "1wABarIU30p9HwouC2qSIkeJjkTplxszz",
+        "file": "ohaze-base.pkl"
+      },
+      "nhhaze": {
+        "kind": "gdrive",
+        "id": "18X-qsACAi5fFUxJUazduvnjEVJFZYAJD",
+        "file": "nhhaze-base.pkl"
+      }
+    },
+    "CoA": {
+      "ema_r": {
+        "kind": "gdrive",
+        "id": "1xSNdoYlAKsg2ayeRCZEBt1lzQvxMREy8",
+        "file": "model.rar",
+        "inner": [
+          "EMA_r.pth"
+        ]
+      }
+    },
+    "BiLaLoRA": {
+      "lora": {
+        "kind": "gdrive",
+        "id": "14h3VyeaA6SxatmJ8_2uPIvvgq3k_2zok",
+        "file": "weight.rar",
+        "inner": [
+          "LoRA.pth",
+          "Base.pth"
+        ]
+      }
     }
   },
   "weight_pages": {
-    "FFA-Net": "https://drive.google.com/drive/folders/19_lSUPrpLDZl9AyewhHBsHidZEpTMIV5",
-    "MSBDN-DFF": "https://drive.google.com/open?id=1da13IOlJ3FQfH6Duj_u1exmZzgXPaYXe",
-    "AECR-Net": "https://gitee.com/damon_one/AECR-Net1/tree/main/trained_models  (official: https://pan.baidu.com/s/13crsXwwhkI5A3MlHtPihuA pwd xhyi)",
-    "DEA-Net": "https://drive.google.com/drive/folders/1Rjb8dpyNnvvr0XLvIX9fg8Hdru_MhMCj"
+    "DEA-Net": "https://drive.google.com/drive/folders/1Rjb8dpyNnvvr0XLvIX9fg8Hdru_MhMCj",
+    "ConvIR": "https://drive.google.com/drive/folders/1_5fO2p5xoWO5cUEVoXJ7x3Uhg1AP18FQ",
+    "CoA": "https://drive.google.com/drive/folders/1GPUtjvlASVokIjaXJlt8j-QsFxLT9Zgg",
+    "BiLaLoRA": "https://drive.google.com/drive/folders/1qEmYEONhX8e0b7PLikKxMCKNu_j7pu6b"
   },
   "dataset_sources": {
     "SOTS_zip": "https://huggingface.co/datasets/desonglll/reside-SOTS/resolve/main/SOTS.zip",
@@ -123,10 +140,10 @@
     "resolution": "full (after max_side)",
     "tta": false,
     "per_model": {
-      "FFA-Net": "Normalize(mean=[0.64,0.6,0.58], std=[0.14,0.15,0.152])",
-      "MSBDN-DFF": "[0,1], reflect-pad to multiple of 16",
-      "AECR-Net": "[0,1], pad to multiple of 4; DCNv2 -> torchvision.ops.deform_conv2d",
-      "DEA-Net": "[0,1], reflect-pad to multiple of 4"
+      "DEA-Net": "[0,1], reflect-pad to multiple of 4",
+      "ConvIR": "[0,1], reflect-pad to multiple of 32, full-scale output (outputs[2]), crop back",
+      "CoA": "CLIP Normalize, bicubic resize to multiple of 16, output[0], resize back",
+      "BiLaLoRA": "same as CoA; Backbonecs + LoRA (r=8, alpha=16) on level3_block1/7/8"
     },
     "output": "clamp [0,1], 8-bit PNG"
   },
@@ -134,42 +151,14 @@
     "PSNR": "skimage peak_signal_noise_ratio, data_range=1, RGB",
     "SSIM": "skimage structural_similarity, gaussian_weights=True, sigma=1.5, use_sample_covariance=False, channel_axis=-1",
     "MAE": "mean |GT - pred| in [0,1]",
+    "LPIPS": "lpips package, net='alex', inputs scaled to [-1,1] (full-reference, lower is better)",
+    "MUSIQ": "pyiqa 'musiq' (KonIQ-10k checkpoint), 0-100, no-reference, higher is better; also computed on hazy inputs and ground-truth images",
     "efficiency": [
       "Params_M",
       "Sec_per_image (CUDA-synchronised, no I/O)"
     ]
   },
   "original_training_configs": {
-    "FFA-Net": {
-      "data": "RESIDE ITS / OTS",
-      "crop": 240,
-      "batch": 2,
-      "iterations": "5e5 (ITS), 1e6 (OTS)",
-      "optimizer": "Adam(0.9,0.999)",
-      "lr": "1e-4 cosine",
-      "loss": "L1",
-      "augmentation": "random crop, hflip, rot90"
-    },
-    "MSBDN-DFF": {
-      "data": "RESIDE (HDF5 patches)",
-      "crop": 256,
-      "batch": 16,
-      "epochs": 100,
-      "optimizer": "Adam",
-      "lr": "1e-4, x0.1 at epoch 50, grad clip 0.25",
-      "loss": "MSE",
-      "augmentation": "random crop, flip"
-    },
-    "AECR-Net": {
-      "data": "RESIDE ITS; NH-HAZE 01-45",
-      "crop": 240,
-      "batch": 16,
-      "iterations": "100 x 5000",
-      "optimizer": "Adam(0.9,0.999)",
-      "lr": "1e-4 cosine",
-      "loss": "L1 + contrastive (VGG-19)",
-      "augmentation": "random crop, hflip, rot90"
-    },
     "DEA-Net": {
       "data": "RESIDE ITS / OTS",
       "crop": 256,
@@ -179,6 +168,32 @@
       "lr": "1e-4 -> 1e-6 cosine",
       "loss": "L1 + 0.1 contrastive (VGG-19)",
       "augmentation": "random crop, flip, rot90"
+    },
+    "ConvIR": {
+      "variant": "ConvIR-B (base)",
+      "data": "RESIDE ITS (SOTS-indoor checkpoint); O-HAZE 01-40 / NH-HAZE 01-50 train(+val) splits for the real-haze checkpoints",
+      "crop": 256,
+      "optimizer": "Adam(0.9,0.999)",
+      "lr": "cosine-annealed to 1e-6 (see the paper / repo for per-dataset epochs)",
+      "loss": "multi-scale L1 + 0.1 frequency-domain (FFT) L1",
+      "augmentation": "random crop, hflip",
+      "params_M": 8.63,
+      "note": "per-dataset numbers taken from the official repository; checkpoints are in-domain for O-HAZE / NH-HAZE"
+    },
+    "CoA": {
+      "data": "THaze (synthetic, paired) + unlabelled real hazy images",
+      "stages": "Teacher 20x5000 -> KD student 20x5000 -> EMA adaptation 20x1000",
+      "optimizer": "Adam",
+      "lr": "1e-4->1e-6 cosine (teacher/KD), 1e-7->1e-8 (EMA)",
+      "loss": "0.8 L1 + 0.2 SSIM + 0.05 CR; + feature alignment (KD); L1 + 0.5 CLIP (EMA)",
+      "params_M": 1.69
+    },
+    "BiLaLoRA": {
+      "data": "DEA backbone pre-trained on THaze (L1); LoRA adapted on 500 unlabelled real daytime haze images",
+      "lora": "r=8, lora_alpha=16 (scale 2), top-3 layers selected by bilevel search",
+      "lr": "1e-6",
+      "crop": 256,
+      "params_M": 3.764
     }
   },
   "hardware_software_used": {
@@ -188,5 +203,16 @@
     "torch": "2.14.1+cu126",
     "torchvision": "0.29.1",
     "numpy": "2.5.2"
+  },
+  "survey_2025_2026": {
+    "models_found": 12,
+    "with_code_and_weights": 3,
+    "run": [
+      "CoA",
+      "BiLaLoRA"
+    ],
+    "not_run": {
+      "UDPNet": "weights on Baidu only (login required)"
+    }
   }
 }

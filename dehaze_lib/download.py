@@ -2,8 +2,6 @@
 
 Everything is resumable: files that already exist are skipped, so you can re-run safely.
 """
-import base64
-import hashlib
 import shutil
 import subprocess
 import zipfile
@@ -177,19 +175,6 @@ def _gdrive(file_id, dest):
                            f"Open https://drive.google.com/uc?id={file_id} in a browser and save it as {dest}")
 
 
-def _gitee_blob(sha, dest):
-    """Gitee's API returns the file as base64 JSON; verify the git SHA-1 after decoding."""
-    print(f"  downloading {dest.name} from gitee (about 50 MB of base64) ...")
-    r = requests.get(C.GITEE_AECR + sha, headers=UA, timeout=600)
-    r.raise_for_status()
-    data = base64.b64decode(r.json()["content"])
-    git_sha = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
-    if git_sha != sha:
-        raise RuntimeError(f"checksum mismatch for {dest.name}")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(data)
-
-
 def download_weights(models=None):
     status = {}
     for model in models or C.MODELS:
@@ -206,17 +191,17 @@ def download_weights(models=None):
                 if not raw.exists():
                     if spec["kind"] == "gdrive":
                         _gdrive(spec["id"], raw)
-                    elif spec["kind"] == "gitee":
-                        _gitee_blob(spec["sha"], raw)
                 if raw.suffix == ".rar":
+                    names = spec["inner"]
                     if not extract_rar(raw, raw.parent / "extracted"):
                         raise RuntimeError(
-                            f"Could not extract {raw}. Right-click it -> Extract All (Windows 11) or use 7-Zip, "
-                            f"then copy {spec['inner']} into {final.parent}")
-                    hits = sorted((raw.parent / "extracted").rglob(spec["inner"]))
-                    if not hits:
-                        raise RuntimeError(f"{spec['inner']} not found inside {raw.name}")
-                    shutil.copy2(hits[0], final)
+                            f"Could not extract {raw}. Right-click it -> Extract All (Windows 11) or use 7-Zip/WinRAR, "
+                            f"then copy {', '.join(names)} into {final.parent}")
+                    for name in names:
+                        hits = sorted((raw.parent / "extracted").rglob(name))
+                        if not hits:
+                            raise RuntimeError(f"{name} not found inside {raw.name}")
+                        shutil.copy2(hits[0], final.parent / name)
                 status[key] = final.exists()
             except Exception as e:
                 status[key] = False

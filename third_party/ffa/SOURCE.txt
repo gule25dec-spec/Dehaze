@@ -1,1 +1,0 @@
-Source: https://github.com/zhilin007/FFA-Net (net/models/FFA.py), unmodified.

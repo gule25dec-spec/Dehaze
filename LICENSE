@@ -18,7 +18,7 @@ AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---------------------------------------------------------------------------------------------------
-third_party/ contains code by the original authors of FFA-Net, MSBDN-DFF, AECR-Net and DEA-Net.
+third_party/ contains code by the original authors of DEA-Net, ConvIR, CoA and BiLaLoRA.
 It is NOT covered by the MIT license above; it remains under its authors' terms (see each
 third_party/*/SOURCE.txt for the source repository). Datasets and pretrained weights are not
 redistributed here; they are downloaded from their official sources.
